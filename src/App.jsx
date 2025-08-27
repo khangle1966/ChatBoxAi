@@ -52,6 +52,7 @@ const App = () => {
   const [isLoading, setIsLoading] = useState(false);
   const typingInterval = useRef(null);
   const messagesContainerRef = useRef(null);
+  const promptInputRef = useRef(null);
   const [isSidebarOpen, setIsSidebarOpen] = useState(
     () => window.innerWidth > 768
   );
@@ -75,9 +76,17 @@ const App = () => {
       // On reload, ensure no message is stuck in loading state
       const normalized = parsed.map((conv) => ({
         ...conv,
-        messages: (conv.messages || []).map((msg) =>
-          msg && msg.loading ? { ...msg, loading: false } : msg
-        ),
+        messages: (conv.messages || []).map((msg) => {
+          const wasPlaceholder =
+            msg && msg.role === "bot" && typeof msg.content === "string" && msg.content.trim() === "Just a sec...";
+          if (msg && msg.loading) {
+            return { ...msg, loading: false, content: wasPlaceholder ? "" : msg.content };
+          }
+          if (wasPlaceholder) {
+            return { ...msg, content: "" };
+          }
+          return msg;
+        }),
       }));
       return normalized;
     } catch {
@@ -116,30 +125,24 @@ const App = () => {
   useEffect(() => {
     scrollToBottom();
   }, [conversations, activeConversation]);
-  const typingEffect = (text, messageId) => {
-    let textElement = document.querySelector(`#${messageId} .text`);
-    if (!textElement) {
-      return;
-    }
-
-    // Initially set the content to empty and mark as loading
+  const typingEffect = (text, conversationId, messageId) => {
+    // Always initialize state for this message and mark as loading, regardless of DOM availability
     setConversations((prev) =>
       prev.map((conv) =>
-        conv.id === activeConversation
+        conv.id === conversationId
           ? {
             ...conv,
             messages: conv.messages.map((msg) =>
-              msg.id === messageId
-                ? { ...msg, content: "", loading: true }
-                : msg
+              msg.id === messageId ? { ...msg, content: "", loading: true } : msg
             ),
           }
           : conv
       )
     );
 
+    let textElement = document.querySelector(`#${messageId} .text`);
+
     // Set up typing animation
-    textElement.textContent = "";
     const words = text.split(" ");
     let wordIndex = 0;
     let currentText = "";
@@ -147,20 +150,19 @@ const App = () => {
     clearInterval(typingInterval.current);
     typingInterval.current = setInterval(() => {
       if (wordIndex < words.length) {
-        // Update the current text being displayed
         currentText += (wordIndex === 0 ? "" : " ") + words[wordIndex++];
-        textElement.textContent = currentText;
+        // Update DOM only if present; state is source of truth
+        if (textElement) {
+          textElement.textContent = currentText;
+        }
 
-        // Update state with current progress
         setConversations((prev) =>
           prev.map((conv) =>
-            conv.id === activeConversation
+            conv.id === conversationId
               ? {
                 ...conv,
                 messages: conv.messages.map((msg) =>
-                  msg.id === messageId
-                    ? { ...msg, content: currentText, loading: true }
-                    : msg
+                  msg.id === messageId ? { ...msg, content: currentText, loading: true } : msg
                 ),
               }
               : conv
@@ -168,18 +170,14 @@ const App = () => {
         );
         scrollToBottom();
       } else {
-        // Animation complete
         clearInterval(typingInterval.current);
-        // Final update, mark as finished loading
         setConversations((prev) =>
           prev.map((conv) =>
-            conv.id === activeConversation
+            conv.id === conversationId
               ? {
                 ...conv,
                 messages: conv.messages.map((msg) =>
-                  msg.id === messageId
-                    ? { ...msg, content: currentText, loading: false }
-                    : msg
+                  msg.id === messageId ? { ...msg, content: currentText, loading: false } : msg
                 ),
               }
               : conv
@@ -314,17 +312,17 @@ const App = () => {
         throw new Error("Failed to extract response from API");
       }
 
-      typingEffect(responseText, botMessageId);
+      typingEffect(responseText, conversation.id, botMessageId);
     } catch (error) {
       setIsLoading(false);
-      updateBotMessage(botMessageId, `Error: ${error.message}`, true);
+      updateBotMessage(conversation.id, botMessageId, `Error: ${error.message}`, true);
     }
   };
   // Update specific bot message
-  const updateBotMessage = (botId, content, isError = false) => {
+  const updateBotMessage = (conversationId, botId, content, isError = false) => {
     setConversations((prev) =>
       prev.map((conv) =>
-        conv.id === activeConversation
+        conv.id === conversationId
           ? {
             ...conv,
             messages: conv.messages.map((msg) =>
@@ -370,20 +368,25 @@ const App = () => {
 
           <Storybook
             onPromptClick={({ prompt, genre, mode }) => {
+              // Custom mode: chỉ focus ô nhập, KHÔNG tạo chat mới
+              if (mode === "custom") {
+                return;
+              }
               // Create new conversation with the selected prompt and lock genre
               const newId = `conv-${Date.now()}`;
+              const safeTitle = prompt ? (prompt.length > 25 ? prompt.substring(0, 25) + "..." : prompt) : "New Chat";
               const newConversation = {
                 id: newId,
-                title:
-                  prompt.length > 25 ? prompt.substring(0, 25) + "..." : prompt,
+                title: safeTitle,
                 messages: [],
                 genre: genre || "tùy chỉnh",
               };
-              setConversations([newConversation, ...conversations]);
+              setConversations((prev) => [newConversation, ...prev]);
               setActiveConversation(newId);
 
               // Add the prompt as a user message
               setTimeout(() => {
+                if (!prompt) return; // custom mode: chỉ focus ô nhập, không tự chèn tin nhắn
                 const userMessage = {
                   id: `user-${Date.now()}`,
                   role: "user",
@@ -402,7 +405,7 @@ const App = () => {
                 const botMessage = {
                   id: botMessageId,
                   role: "bot",
-                  content: "Just a sec...",
+                  content: "",
                   loading: true,
                 };
                 setConversations((prev) =>
@@ -427,6 +430,11 @@ const App = () => {
                 }
               }, 100);
             }}
+            onFocusPrompt={() => {
+              try {
+                promptInputRef.current?.focusInput?.();
+              } catch { }
+            }}
           />
         ) : (
           // Messages container
@@ -446,6 +454,7 @@ const App = () => {
               generateResponse={generateResponse}
               isLoading={isLoading}
               setIsLoading={setIsLoading}
+              ref={promptInputRef}
             />
           </div>
           <p className="disclaimer-text">

@@ -1,9 +1,19 @@
 import { ChevronRight, Plus, Mic, X } from "lucide-react";
-import { useState } from "react";
+import { useState, forwardRef, useImperativeHandle, useRef } from "react";
 import ImageUploader from "./ImageUploader";
 
-const PromptForm = ({ conversations, setConversations, activeConversation, generateResponse, isLoading, setIsLoading }) => {
+const PromptForm = forwardRef(({ conversations, setConversations, activeConversation, generateResponse, isLoading, setIsLoading }, inputRef) => {
   const [promptText, setPromptText] = useState("");
+  const internalInputRef = useRef(null);
+
+  useImperativeHandle(inputRef, () => ({
+    focusInput: () => {
+      try {
+        internalInputRef.current?.focus();
+        internalInputRef.current?.scrollIntoView({ behavior: 'smooth', block: 'end' });
+      } catch { }
+    }
+  }), []);
 
   const [selectedImages, setSelectedImages] = useState([]);
   const [showImageUploader, setShowImageUploader] = useState(false);
@@ -63,7 +73,7 @@ const PromptForm = ({ conversations, setConversations, activeConversation, gener
       const botMessage = {
         id: botMessageId,
         role: "bot",
-        content: "Just a sec...",
+        content: "",
         loading: true,
       };
 
@@ -139,6 +149,7 @@ const PromptForm = ({ conversations, setConversations, activeConversation, gener
             value={promptText}
             onChange={(e) => setPromptText(e.target.value)}
             required
+            ref={internalInputRef}
           />
           {promptText.trim() && !isLoading ? (
             <button type="submit" className="send-material-btn" aria-label="Gửi">
@@ -151,5 +162,5 @@ const PromptForm = ({ conversations, setConversations, activeConversation, gener
     </div>
 
   );
-};
+});
 export default PromptForm;

@@ -1,7 +1,7 @@
 import { BookOpen, MoreHorizontal, ArrowRight } from "lucide-react";
 import { useState } from "react";
 
-const Storybook = ({ onPromptClick }) => {
+const Storybook = ({ onPromptClick, onFocusPrompt }) => {
   const [customMode, setCustomMode] = useState(false);
 
   const genres = [
@@ -82,13 +82,9 @@ const Storybook = ({ onPromptClick }) => {
             className="ellipsis-btn"
             onClick={() => {
               enterCustomMode();
-              setTimeout(() => {
-                const input = document.querySelector('.prompt-input');
-                if (input) {
-                  input.scrollIntoView({ behavior: 'smooth', block: 'end' });
-                  input.focus();
-                }
-              }, 400);
+              if (onFocusPrompt) {
+                setTimeout(() => onFocusPrompt(), 200);
+              }
             }}
             aria-label="Tạo câu chuyện riêng"
           >
