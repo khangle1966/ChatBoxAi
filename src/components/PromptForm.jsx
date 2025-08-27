@@ -5,7 +5,10 @@ import ImageUploader from "./ImageUploader";
 const PromptForm = forwardRef(({ conversations, setConversations, activeConversation, generateResponse, isLoading, setIsLoading }, inputRef) => {
   const [promptText, setPromptText] = useState("");
   const internalInputRef = useRef(null);
-
+  const autoResize = (el) => {
+    el.style.height = "auto";
+    el.style.height = Math.min(el.scrollHeight, 250) + "px"; // Đồng bộ với max-height
+  };
   useImperativeHandle(inputRef, () => ({
     focusInput: () => {
       try {
@@ -143,11 +146,16 @@ const PromptForm = forwardRef(({ conversations, setConversations, activeConversa
           <button type="button" className="left-addon" onClick={toggleImageUploader} aria-label="Thêm">
             <Plus size={18} />
           </button>
-          <input
+          <textarea
             placeholder="Message OpenAPI..."
             className="prompt-input"
             value={promptText}
-            onChange={(e) => setPromptText(e.target.value)}
+            onChange={(e) => {
+              setPromptText(e.target.value);
+              autoResize(e.target);
+            }}
+            rows={1}
+            style={{ resize: "none", overflow: "auto", maxHeight: "200px" }}
             required
             ref={internalInputRef}
           />
