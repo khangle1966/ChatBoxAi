@@ -80,23 +80,6 @@ const App = () => {
     return localStorage.getItem("activeConversation") || "default";
   });
 
-  // Debug: Log environment variables (remove in production)
-  useEffect(() => {
-    console.log('Environment check:');
-    console.log('VITE_OPENAI_API_URL:', import.meta.env.VITE_OPENAI_API_URL);
-    console.log('VITE_OPENAI_API_KEY exists:', !!import.meta.env.VITE_OPENAI_API_KEY);
-    console.log('Current URL:', window.location.href);
-
-    // Test if generateResponse function exists
-    console.log('generateResponse function exists:', typeof generateResponse === 'function');
-
-    // Test simple fetch
-    console.log('Testing basic fetch...');
-    fetch('https://httpbin.org/get')
-      .then(res => res.json())
-      .then(data => console.log('Basic fetch test successful:', data))
-      .catch(err => console.error('Basic fetch test failed:', err));
-  }, []);
   useEffect(() => {
     localStorage.setItem("activeConversation", activeConversation);
   }, [activeConversation]);
@@ -200,8 +183,6 @@ const App = () => {
   };
   // Generate AI response
   const generateResponse = async (conversation, botMessageId) => {
-    console.log('generateResponse called with:', { conversation, botMessageId });
-
     // Build contextual transcript from recent turns (max 4)
     const recent = (conversation.messages || []).slice(-4);
     const transcript = recent.map(m => {
@@ -223,29 +204,14 @@ const App = () => {
         store: true,
       };
 
-      console.log('=== DEBUG API CALL ===');
-      console.log('Request URL:', import.meta.env.VITE_OPENAI_API_URL);
-      console.log('API Key exists:', !!import.meta.env.VITE_OPENAI_API_KEY);
-      console.log('API Key length:', import.meta.env.VITE_OPENAI_API_KEY?.length);
-      console.log('Request body:', JSON.stringify(requestBody, null, 2));
-      console.log('Headers:', {
-        "Content-Type": "application/json",
-        Authorization: `Bearer ${import.meta.env.VITE_OPENAI_API_KEY?.substring(0, 20)}...`,
-      });
-
       // Check if environment variables are properly loaded
       if (!import.meta.env.VITE_OPENAI_API_URL) {
-        console.error('❌ VITE_OPENAI_API_URL is not defined!');
         throw new Error('API URL not configured');
       }
 
       if (!import.meta.env.VITE_OPENAI_API_KEY) {
-        console.error('❌ VITE_OPENAI_API_KEY is not defined!');
         throw new Error('API Key not configured');
       }
-
-      console.log('✅ Environment variables loaded successfully');
-      console.log('Attempting API call to:', import.meta.env.VITE_OPENAI_API_URL);
 
       const res = await fetch(import.meta.env.VITE_OPENAI_API_URL, {
         method: "POST",
@@ -255,9 +221,6 @@ const App = () => {
         },
         body: JSON.stringify(requestBody),
       });
-
-      console.log('API Response status:', res.status);
-      console.log('API Response headers:', Object.fromEntries(res.headers.entries()));
 
       const data = await res.json();
 
@@ -345,11 +308,6 @@ const App = () => {
 
       typingEffect(responseText, botMessageId);
     } catch (error) {
-      console.error('❌ Error in generateResponse:', error);
-      console.error('❌ Error name:', error.name);
-      console.error('❌ Error message:', error.message);
-      console.error('❌ Error stack:', error.stack);
-
       setIsLoading(false);
       updateBotMessage(botMessageId, `Error: ${error.message}`, true);
     }
@@ -454,7 +412,6 @@ const App = () => {
                   mode !== "custom" ||
                   (mode === "custom" && prompt)
                 ) {
-                  console.log('About to call generateResponse...');
                   generateResponse(
                     { ...newConversation, messages: [userMessage] },
                     botMessageId
