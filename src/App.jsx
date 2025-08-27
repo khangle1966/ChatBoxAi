@@ -69,9 +69,17 @@ const App = () => {
     try {
       // Load conversations from localStorage or use default
       const saved = localStorage.getItem("conversations");
-      return saved
+      const parsed = saved
         ? JSON.parse(saved)
         : [{ id: "default", title: "New Chat", messages: [] }];
+      // On reload, ensure no message is stuck in loading state
+      const normalized = parsed.map((conv) => ({
+        ...conv,
+        messages: (conv.messages || []).map((msg) =>
+          msg && msg.loading ? { ...msg, loading: false } : msg
+        ),
+      }));
+      return normalized;
     } catch {
       return [{ id: "default", title: "New Chat", messages: [] }];
     }
