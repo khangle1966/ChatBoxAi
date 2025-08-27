@@ -34,32 +34,6 @@ const Storybook = ({ onPromptClick }) => {
   ];
 
   const handleGenreClick = (g) => {
-    // Test API connection first
-    console.log('Testing API connection...');
-    fetch(import.meta.env.VITE_OPENAI_API_URL, {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        'Authorization': `Bearer ${import.meta.env.VITE_OPENAI_API_KEY}`,
-      },
-      body: JSON.stringify({
-        model: "gpt-4o-mini",
-        input: "test",
-        instructions: "test",
-        store: true,
-      }),
-    })
-      .then(res => {
-        console.log('Test API response status:', res.status);
-        return res.json();
-      })
-      .then(data => {
-        console.log('Test API response data:', data);
-      })
-      .catch(err => {
-        console.error('Test API error:', err);
-      });
-
     if (onPromptClick) onPromptClick({ prompt: g.prompt, genre: g.genre });
   };
 
